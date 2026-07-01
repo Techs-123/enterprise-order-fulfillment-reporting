@@ -1,0 +1,65 @@
+INSERT INTO customer(customer_id, name, city)
+SELECT dISTINCT
+	customer_id,
+    COALESCE(NULLIF(customer_name, ''), 'Unknown') AS name,
+    COALESCE(NULLIF(city, ''), 'Unknown') AS city
+FROM staging_customer
+WHERE customer_id IS NOT NULL;
+    
+    
+
+
+INSERT INTO Orders(order_id, customer_id, order_date)
+SELECT DISTINCT
+	order_id,
+    customer_id,
+    order_date
+FROM staging_orders
+WHERE order_id IS NOT NULL
+AND customer_id IN (SELECT customer_id from customer);
+
+
+
+
+INSERT INTO product(product_id, product_name, price)
+SELECT DISTINCT
+	product_id,
+    COALESCE(NULLIF(product_name, ''), 'Unknown') AS product_name,
+    CASE 
+        WHEN product_name = 'Monitor' THEN 15000 
+        WHEN product_name = 'Headset' THEN 1200
+        ELSE product_price
+    END AS price
+FROM staging_product
+WHERE product_id IS NOT NULL;
+
+
+
+
+
+INSERT INTO order_item(order_id,product_id, quantity)
+SELECT DISTINCT
+	order_id,
+    product_id,
+   CASE WHEN quantity < 0 THEN -quantity
+   ELSE quantity 
+   END AS quantity
+FROM staging_order_item
+WHERE order_id IN (SELECT order_id from orders)
+AND product_id IN (SELECT product_id from product);
+
+
+
+
+
+
+INSERT INTO payment(pay_id, order_id, amount, method, pay_date)
+SELECT DISTINCT
+	pay_id,
+	order_id,
+     CASE WHEN amount < 0 THEN -amount ELSE amount END AS amount,
+     COALESCE(NULLIF(method, ''), 'Unknown') AS method,
+    pay_date
+FROM staging_payment
+WHERE pay_id IS NOT NULL
+AND order_id IN (SELECT order_id from orders);
